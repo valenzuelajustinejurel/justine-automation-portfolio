@@ -1,0 +1,810 @@
+{
+  "name": "AI-Powered Hiring Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -384,
+        -112
+      ],
+      "id": "9d37a854-60ac-47bb-89c2-516fa2d3a58a",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "PX9QwM7BrPOHgfP0",
+          "name": "Gmail account - valenzuela.justinejurel@gmail.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        96
+      ],
+      "id": "f0a3302b-8331-4a84-8a90-bd22f94676a6",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "38KnDpNDL6Wwx4eA",
+          "name": "n8n account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"name\": \"string\",\n  \"email\": \"string\",\n  \"position\": \"string\",\n  \"coverLetter\": \"string\",\n  \"score\": 0,\n  \"tier\": \"string\",\n  \"reply\": \"string\"\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        16,
+        96
+      ],
+      "id": "4699aa02-b905-461a-9f9d-8d69ba6e599d",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3b9d1b21-6f5b-43c4-adef-26bd45180680",
+              "leftValue": "={{ $json.output.name }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "ad0e6ead-dc8e-4db5-9ffc-3b1c267252b8",
+              "leftValue": "={{ $json.output.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "9d0bf956-cd39-4de5-8b86-8461e54f7b97",
+              "leftValue": "={{ $json.output.position }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "27607299-55a3-4d5c-8ed4-4d7895f69595",
+              "leftValue": "={{ $json.output.score }}",
+              "rightValue": "",
+              "operator": {
+                "type": "number",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "e8d78aff-b562-4f9c-81b3-b60dc7564068",
+              "leftValue": "={{ $json.output.tier }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "b29c0bc2-8a85-4e8e-bee3-a31fc94e4d03",
+              "leftValue": "={{ $json.output.reply }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        256,
+        -112
+      ],
+      "id": "2e345bd7-b26f-4630-9ef0-d4905e1e61bb",
+      "name": "Validate Required Fields"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        256,
+        32
+      ],
+      "id": "c7b270ea-f3c9-484d-8b88-8aaa649e936f",
+      "name": "Stop: Missing Fields"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=New Application Received:\n\nSubject: {{ $json.Subject }}\nFrom: {{ $json.From }}\nBody: {{ $json.snippet }}\n\nExtract the applicant details, score them, assign a tier, and draft a reply.",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are a hiring assistant for NovaCo. Your job is to screen inbound job applications sent via email.\n\nFor each application, do four things:\n1. Extract the applicant's name, email address, and position they applied for from the email.\n2. Score the candidate from 1 to 10 based on the quality of their cover letter.\n   - 7–10 (strong): Specific experience, measurable results, clear fit, ready to move forward\n   - 4–6 (maybe): Some relevant experience but vague, no clear results, needs more info\n   - 1–3 (pass): No relevant experience, very generic, no effort shown\n   - The score MUST be a number (e.g. 8), not a string (e.g. \"8\"). Never wrap it in quotes.\n3. Assign a tier: \"strong\", \"maybe\", or \"pass\" based on the score.\n4. Write a short reply (2–3 sentences) appropriate for their tier:\n   - strong: Enthusiastic, invite them to schedule a call\n   - maybe: Warm, let them know we'll be in touch\n   - pass: Polite, thank them and let them know we're moving forward with other candidates\n\nAlways respond in valid JSON only. No extra text outside the JSON.\n"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -128,
+        -112
+      ],
+      "id": "de6be370-ed3a-4f16-a416-6ddd4cc80970",
+      "name": "Classify Candidate",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        864,
+        -144
+      ],
+      "id": "b6c7d3b8-3067-487b-97b4-dfa29e347cf3",
+      "name": "Stop: Duplicate"
+    },
+    {
+      "parameters": {
+        "content": "# AI-Powered Hiring Pipeline\n",
+        "height": 80,
+        "width": 480,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        192,
+        -288
+      ],
+      "id": "bb1e7095-7eba-439b-abc6-8ecbe50842ea",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "### Prevent Missing Fields and processing the same applicant twice",
+        "height": 336,
+        "width": 848
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        176,
+        -176
+      ],
+      "id": "7c53bb79-2cea-4843-86a3-9c372d3e4ab1",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "### AI scores candidate (1–10)\\nStrong → DM hiring manager + enthusiastic reply\\nMaybe → Hold email only\\nPass → Polite rejection (no Slack)",
+        "height": 496,
+        "width": 352,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -208,
+        -240
+      ],
+      "id": "296cf6bc-d143-45aa-938a-8473c27a6e33",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1AiFOGCjNoknIg4Do2Y6tfQSr_ILrlK15f9dHsYxWkXk",
+          "mode": "list",
+          "cachedResultName": "Candidate Tracker",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1AiFOGCjNoknIg4Do2Y6tfQSr_ILrlK15f9dHsYxWkXk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1AiFOGCjNoknIg4Do2Y6tfQSr_ILrlK15f9dHsYxWkXk/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "email",
+              "lookupValue": "={{ $('Classify Candidate').first().json.output.email }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        464,
+        -128
+      ],
+      "id": "acc53496-1e6b-49a3-8817-44259ba9c0db",
+      "name": "Check for Duplicate Email",
+      "retryOnFail": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "o3ZPf0UWLoqUWdHS",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "edd5f828-80d4-47e3-87d7-b4039b0610c0",
+              "leftValue": "={{ ($json.email || '').trim() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        672,
+        -128
+      ],
+      "id": "a94e1531-0757-40f5-890c-56165c11884c",
+      "name": "Is Duplicate?"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Validate Required Fields').first().json.output.tier }}",
+                    "rightValue": "strong",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "ed1f67c8-4e0c-41d9-b0eb-5003bd5b77a7"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "strong"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "05ba0c2b-6e1e-4f5b-bd95-a3873f8db9cc",
+                    "leftValue": "={{ $('Validate Required Fields').first().json.output.tier }}",
+                    "rightValue": "maybe",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "maybe"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "93ba7b49-5ac4-42db-bbf5-1648ff26d988",
+                    "leftValue": "={{ $('Validate Required Fields').first().json.output.tier }}",
+                    "rightValue": "pass",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "pass"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        496,
+        416
+      ],
+      "id": "b516123f-d080-4b90-adba-5511c3f35454",
+      "name": "Route by Candidate Tier"
+    },
+    {
+      "parameters": {
+        "select": "user",
+        "user": {
+          "__rl": true,
+          "value": "U0B8HKU7CTF",
+          "mode": "id"
+        },
+        "text": "=New Application — Strong Candidate 🔥\n\nName: {{ $('Validate Required Fields').first().json.output.name }}\nEmail: {{ $('Validate Required Fields').first().json.output.email }}\nPosition: {{ $('Validate Required Fields').first().json.output.position }}\nScore: {{ $('Validate Required Fields').first().json.output.score }}\n\nCover Letter Summary: \n{{ $('Validate Required Fields').first().json.output.coverLetter }}\n\nSuggested Reply: \n{{ $('Validate Required Fields').first().json.output.reply }}\n",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        736,
+        192
+      ],
+      "id": "244b1d2d-30ed-406a-8ecf-0eabd2a61259",
+      "name": "DM Hiring Manager: Strong Candidate (Slack)",
+      "webhookId": "1f2f286a-0bd8-47be-9b9c-521ae0f9b3c1",
+      "retryOnFail": true,
+      "credentials": {
+        "slackApi": {
+          "id": "7MqeuMMMqbhKPVM7",
+          "name": "Proton Logic"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Validate Required Fields').first().json.output.email }}",
+        "subject": "We'd love to chat — NovaCo",
+        "emailType": "text",
+        "message": "={{ $('Validate Required Fields').first().json.output.reply }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        192
+      ],
+      "id": "4677425d-00af-4560-ae1d-e706f6e6201a",
+      "name": "Strong Reply to Candidate (Gmail)",
+      "webhookId": "8a81cec5-454f-4dc7-8dd4-6e1842e207b0",
+      "retryOnFail": true,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "PX9QwM7BrPOHgfP0",
+          "name": "Gmail account - valenzuela.justinejurel@gmail.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Validate Required Fields').first().json.output.email }}",
+        "subject": "Thanks for applying to NovaCo",
+        "emailType": "text",
+        "message": "={{ $('Validate Required Fields').first().json.output.reply }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        848,
+        368
+      ],
+      "id": "989d35fa-ef93-4e47-a03a-dc5cb756869f",
+      "name": "Holding Reply to Candidate (Gmail)",
+      "webhookId": "8a81cec5-454f-4dc7-8dd4-6e1842e207b0",
+      "retryOnFail": true,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "PX9QwM7BrPOHgfP0",
+          "name": "Gmail account - valenzuela.justinejurel@gmail.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Validate Required Fields').first().json.output.email }}",
+        "subject": "Your application to NovaCo",
+        "emailType": "text",
+        "message": "={{ $('Validate Required Fields').first().json.output.reply }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        720,
+        512
+      ],
+      "id": "fa4db722-c76f-46e6-af9f-3b50a7f48656",
+      "name": "Rejection Reply to Candidate (Gmail)",
+      "webhookId": "8a81cec5-454f-4dc7-8dd4-6e1842e207b0",
+      "retryOnFail": true,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "PX9QwM7BrPOHgfP0",
+          "name": "Gmail account - valenzuela.justinejurel@gmail.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1AiFOGCjNoknIg4Do2Y6tfQSr_ILrlK15f9dHsYxWkXk",
+          "mode": "list",
+          "cachedResultName": "Candidate Tracker",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1AiFOGCjNoknIg4Do2Y6tfQSr_ILrlK15f9dHsYxWkXk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1AiFOGCjNoknIg4Do2Y6tfQSr_ILrlK15f9dHsYxWkXk/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "email": "={{ $('Validate Required Fields').first().json.output.email }}",
+            "name": "={{ $('Validate Required Fields').first().json.output.name }}",
+            "position": "={{ $('Validate Required Fields').first().json.output.position }}",
+            "coverLetter": "={{ $('Validate Required Fields').first().json.output.coverLetter }}",
+            "score": "={{ $('Validate Required Fields').first().json.output.score }}",
+            "tier": "={{ $('Validate Required Fields').first().json.output.tier }}",
+            "reply": "={{ $('Validate Required Fields').first().json.output.reply }}"
+          },
+          "matchingColumns": [
+            "email"
+          ],
+          "schema": [
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "position",
+              "displayName": "position",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "coverLetter",
+              "displayName": "coverLetter",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "score",
+              "displayName": "score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tier",
+              "displayName": "tier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reply",
+              "displayName": "reply",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1120,
+        448
+      ],
+      "id": "7dd6ffbe-b48f-4f0d-bccb-e31ff977668f",
+      "name": "Log Candidate to Sheets",
+      "retryOnFail": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "o3ZPf0UWLoqUWdHS",
+          "name": "Google Sheets account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Classify Candidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Classify Candidate",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Classify Candidate",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Required Fields": {
+      "main": [
+        [
+          {
+            "node": "Check for Duplicate Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stop: Missing Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Candidate": {
+      "main": [
+        [
+          {
+            "node": "Validate Required Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check for Duplicate Email": {
+      "main": [
+        [
+          {
+            "node": "Is Duplicate?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Duplicate?": {
+      "main": [
+        [
+          {
+            "node": "Stop: Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Route by Candidate Tier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Candidate Tier": {
+      "main": [
+        [
+          {
+            "node": "DM Hiring Manager: Strong Candidate (Slack)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Holding Reply to Candidate (Gmail)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rejection Reply to Candidate (Gmail)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DM Hiring Manager: Strong Candidate (Slack)": {
+      "main": [
+        [
+          {
+            "node": "Strong Reply to Candidate (Gmail)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Strong Reply to Candidate (Gmail)": {
+      "main": [
+        [
+          {
+            "node": "Log Candidate to Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Holding Reply to Candidate (Gmail)": {
+      "main": [
+        [
+          {
+            "node": "Log Candidate to Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rejection Reply to Candidate (Gmail)": {
+      "main": [
+        [
+          {
+            "node": "Log Candidate to Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "jlyw3pUfma2Uqugy",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "2d5f2bda-6aa6-43de-959b-491beb522bfb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d28e256ce0b68d0fe95ed8a4c9852845743f50f1b1e1a8990cafe1b5dbcead1b"
+  },
+  "id": "JGhdB7Khf077nKsS",
+  "tags": []
+}
