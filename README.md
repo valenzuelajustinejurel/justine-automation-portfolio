@@ -10,7 +10,7 @@ Production-grade n8n workflows enhanced with Claude AI. Each workflow is built a
 |---|---|---|---|
 | [01](01-lead-intake-ai-qualification/) | Lead Intake + AI Qualification | Lead-to-text | n8n · OpenRouter · Slack · Gmail · Google Sheets |
 | [02](02-ai-powered-hiring-pipeline/) | AI-Powered Hiring Pipeline | Candidate screening | n8n · OpenRouter · Slack · Gmail · Google Sheets |
-| 03 | Slack IT Support + AI Router | Ticket triage | n8n · Claude · Slack |
+| [03](03-slack-it-support-ai-router/) | Slack IT Support + AI Router | Ticket triage | n8n · OpenRouter · Slack · Google Sheets |
 | 04 | AI Agent: Employee Onboarding | Agentic loop | n8n · Claude AI Agent · Sub-workflows |
 | [05](05-healthcare-intake-eligibility-pipeline/) | Healthcare Client Intake & Eligibility Pipeline | Multi-stage intake | n8n · Supabase · Slack · Asana · Gmail |
 
